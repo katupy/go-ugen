@@ -19,6 +19,7 @@ type Generator struct {
 	Ulid         bool
 	UlidAsUuid   bool
 	Uuid         bool
+	Uuid7        bool
 	Lower        bool
 	Upper        bool
 	Prefix       string
@@ -33,7 +34,7 @@ func (g *Generator) Gen(writer io.Writer, count, length int) error {
 	var genBuf []byte
 
 	switch {
-	case g.Ulid, g.Uuid:
+	case g.Ulid, g.Uuid, g.Uuid7:
 		length = 16
 	default:
 		genBuf = make([]byte, length)
@@ -71,7 +72,19 @@ func (g *Generator) Gen(writer io.Writer, count, length int) error {
 		case g.Uuid:
 			v, err := uuid.NewRandom()
 			if err != nil {
-				return fmt.Errorf("failed to generate UUID: %w", err)
+				return fmt.Errorf("failed to generate UUIDv4: %w", err)
+			}
+
+			switch {
+			case g.Base64, g.Hex:
+				genBuf = v[:]
+			default:
+				genBuf = []byte(v.String())
+			}
+		case g.Uuid7:
+			v, err := uuid.NewV7()
+			if err != nil {
+				return fmt.Errorf("failed to generate UUIDv7: %w", err)
 			}
 
 			switch {

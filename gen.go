@@ -12,10 +12,7 @@ var (
 	lower = []byte("abcdefghijklmnopqrstuvwxyz")
 	upper = []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
-	digitLower = append(digit, lower...)
-	digitUpper = append(digit, upper...)
-	lowerUpper = append(lower, upper...)
-
+	lowerUpper      = append(lower, upper...)
 	digitLowerUpper = append(digit, lowerUpper...)
 )
 
