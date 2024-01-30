@@ -3,9 +3,9 @@
 ## As a command
 
 ```sh
-$ go run go.katupy.io/ugen/cmd
+$ go run go.katupy.io/ugen/cmd/ugen
 D5XlMsS2e5Xb
-$ go run go.katupy.io/ugen/cmd -h
+$ go run go.katupy.io/ugen/cmd/ugen -h
 Usage:
   ugen [flags]
 
