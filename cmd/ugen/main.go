@@ -23,6 +23,8 @@ var mainCmd = &cobra.Command{
 
 		g := &ugen.Generator{
 			AnyCharacter: viper.GetBool("any"),
+			Digit:        viper.GetBool("digit"),
+			Interval:     viper.GetString("interval"),
 			Base64:       viper.GetBool("base64"),
 			Hex:          viper.GetBool("hex"),
 			Ulid:         viper.GetBool("ulid") || ulidAsUuid,
@@ -37,8 +39,14 @@ var mainCmd = &cobra.Command{
 			WithLineFeed: (stdoutStat.Mode() & os.ModeCharDevice) == os.ModeCharDevice,
 		}
 
-		if err := g.Gen(os.Stdout, viper.GetInt("count"), viper.GetInt("length")); err != nil {
-			return fmt.Errorf("failed to generate: %w", err)
+		if g.Interval != "" {
+			if err := g.GenInterval(os.Stdout, viper.GetInt("count")); err != nil {
+				return fmt.Errorf("failed to generate interval: %w", err)
+			}
+		} else {
+			if err := g.Gen(os.Stdout, viper.GetInt("count"), viper.GetInt("length")); err != nil {
+				return fmt.Errorf("failed to generate: %w", err)
+			}
 		}
 
 		return nil
@@ -48,6 +56,16 @@ var mainCmd = &cobra.Command{
 func init() {
 	mainCmd.PersistentFlags().BoolP("any", "a", false, "Use any character from the random generator.")
 	if err := viper.BindPFlag("any", mainCmd.PersistentFlags().Lookup("any")); err != nil {
+		panic(err)
+	}
+
+	mainCmd.PersistentFlags().BoolP("digit", "d", false, "Use only digits. If length > 1, digit will never start with 0.")
+	if err := viper.BindPFlag("digit", mainCmd.PersistentFlags().Lookup("digit")); err != nil {
+		panic(err)
+	}
+
+	mainCmd.PersistentFlags().StringP("interval", "i", "", "Generate a random number within the provided open ended, i.e., [_,_), interval. E.g., -1000,1000. If a single number is provided, the interval begins with zero. Ignores --length.")
+	if err := viper.BindPFlag("interval", mainCmd.PersistentFlags().Lookup("interval")); err != nil {
 		panic(err)
 	}
 

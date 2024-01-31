@@ -1,10 +1,13 @@
 package ugen // import go.katupy.io/ugen
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +17,8 @@ import (
 
 type Generator struct {
 	AnyCharacter bool
+	Digit        bool
+	Interval     string
 	Base64       bool
 	Hex          bool
 	Ulid         bool
@@ -30,6 +35,44 @@ type Generator struct {
 
 func (g *Generator) Gen(writer io.Writer, count, length int) error {
 	anyCharacter := g.AnyCharacter || g.Base64 || g.Hex
+	builder := new(strings.Builder)
+
+	if g.Interval != "" {
+		// Need to calculate first because of length.
+
+		parts := strings.SplitN(g.Interval, ",", 2)
+
+		first, err := strconv.ParseInt(parts[0], 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse number %q: %w", parts[0], err)
+		}
+
+		var second int64
+
+		if len(parts) == 1 {
+			second = first
+			first = 0
+		} else {
+			second, err = strconv.ParseInt(parts[1], 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse number %q: %w", parts[1], err)
+			}
+		}
+
+		if first >= second {
+			return fmt.Errorf("interval begin is greater than or equals to end")
+		}
+
+		max := second - first - 1
+
+		nBig, err := rand.Int(rand.Reader, big.NewInt(max))
+		if err != nil {
+			return fmt.Errorf("failed to generate random number: %w", err)
+		}
+
+		builder.WriteString(strconv.FormatInt(first+nBig.Int64(), 10))
+		length = builder.Len()
+	}
 
 	var genBuf []byte
 
@@ -48,8 +91,6 @@ func (g *Generator) Gen(writer io.Writer, count, length int) error {
 	case g.Hex:
 		encBuf = make([]byte, hex.EncodedLen(length))
 	}
-
-	builder := new(strings.Builder)
 
 	for i := 0; i < count; i++ {
 		switch {
@@ -95,6 +136,13 @@ func (g *Generator) Gen(writer io.Writer, count, length int) error {
 			}
 		case anyCharacter:
 			gen(length, genBuf, nil)
+		case g.Digit:
+			if length == 1 {
+				gen(length, genBuf, digit)
+			} else {
+				gen(1, genBuf[:1], digit[1:])
+				gen(length, genBuf[1:], digit)
+			}
 		default:
 			gen(length, genBuf, digitLowerUpper)
 		}
@@ -132,6 +180,78 @@ func (g *Generator) Gen(writer io.Writer, count, length int) error {
 		default:
 			fmt.Fprint(writer, builder.String())
 		}
+	}
+
+	if g.WithLineFeed {
+		fmt.Fprint(writer, "\n")
+	}
+
+	return nil
+}
+
+// GenInterval works in a fundamentally different way than Gen since the string
+// length can be variable, so we can't reuse the same (fixed-length) buffer
+// for the results and possible encoding (base64, hex).
+func (g *Generator) GenInterval(writer io.Writer, count int) error {
+	parts := strings.SplitN(g.Interval, ",", 2)
+
+	first, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		return fmt.Errorf("failed to parse number %q: %w", parts[0], err)
+	}
+
+	var second int64
+
+	if len(parts) == 1 {
+		second = first
+		first = 0
+	} else {
+		second, err = strconv.ParseInt(parts[1], 10, 64)
+		if err != nil {
+			return fmt.Errorf("failed to parse number %q: %w", parts[1], err)
+		}
+	}
+
+	if first >= second {
+		return fmt.Errorf("interval begin is greater than or equals to end")
+	}
+
+	max := second - first
+	builder := new(strings.Builder)
+
+	for i := 0; i < count; i++ {
+		n, err := rand.Int(rand.Reader, big.NewInt(max))
+		if err != nil {
+			return fmt.Errorf("failed to generate random number: %w", err)
+		}
+
+		genBuf := []byte(strconv.FormatInt(first+n.Int64(), 10))
+		length := len(genBuf)
+
+		builder.Reset()
+
+		if i > 0 {
+			builder.WriteString(g.Separator)
+		}
+
+		if g.Prefix != "" {
+			builder.WriteString(g.Prefix)
+		}
+
+		switch {
+		case g.Base64:
+			encBuf := make([]byte, base64.StdEncoding.EncodedLen(length))
+			base64.StdEncoding.Encode(encBuf, genBuf)
+			builder.Write(encBuf)
+		case g.Hex:
+			encBuf := make([]byte, hex.EncodedLen(length))
+			hex.Encode(encBuf, genBuf)
+			builder.Write(encBuf)
+		default:
+			builder.Write(genBuf)
+		}
+
+		fmt.Fprint(writer, builder.String())
 	}
 
 	if g.WithLineFeed {
