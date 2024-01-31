@@ -35,44 +35,6 @@ type Generator struct {
 
 func (g *Generator) Gen(writer io.Writer, count, length int) error {
 	anyCharacter := g.AnyCharacter || g.Base64 || g.Hex
-	builder := new(strings.Builder)
-
-	if g.Interval != "" {
-		// Need to calculate first because of length.
-
-		parts := strings.SplitN(g.Interval, ",", 2)
-
-		first, err := strconv.ParseInt(parts[0], 10, 64)
-		if err != nil {
-			return fmt.Errorf("failed to parse number %q: %w", parts[0], err)
-		}
-
-		var second int64
-
-		if len(parts) == 1 {
-			second = first
-			first = 0
-		} else {
-			second, err = strconv.ParseInt(parts[1], 10, 64)
-			if err != nil {
-				return fmt.Errorf("failed to parse number %q: %w", parts[1], err)
-			}
-		}
-
-		if first >= second {
-			return fmt.Errorf("interval begin is greater than or equals to end")
-		}
-
-		max := second - first - 1
-
-		nBig, err := rand.Int(rand.Reader, big.NewInt(max))
-		if err != nil {
-			return fmt.Errorf("failed to generate random number: %w", err)
-		}
-
-		builder.WriteString(strconv.FormatInt(first+nBig.Int64(), 10))
-		length = builder.Len()
-	}
 
 	var genBuf []byte
 
@@ -91,6 +53,8 @@ func (g *Generator) Gen(writer io.Writer, count, length int) error {
 	case g.Hex:
 		encBuf = make([]byte, hex.EncodedLen(length))
 	}
+
+	builder := new(strings.Builder)
 
 	for i := 0; i < count; i++ {
 		switch {

@@ -14,8 +14,10 @@ Flags:
   -a, --any                Use any character from the random generator.
       --base64             Output base64 encoded strings. Sets --any.
   -c, --count int          The number of unique strings to generate. (default 1)
+  -d, --digit              Use only digits. If length > 1, digit will never start with 0.
   -h, --help               help for ugen
       --hex                Output hex encoded strings. Sets --any.
+  -i, --interval string    Generate a random number within the provided open ended, i.e., [_,_), interval. E.g., -1000,1000. If a single number is provided, the interval begins with zero. Ignores --length.
   -l, --length int         Length of the generated string. (default 12)
       --lower              Output characters in lower case.
       --prefix string      Write prefix before each generated string.
